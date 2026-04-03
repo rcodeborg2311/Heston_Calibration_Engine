@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, trunk ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y \
+          cmake \
+          ninja-build \
+          libfftw3-dev \
+          g++-13 \
+          python3-pip
+        pip3 install numpy scipy matplotlib pandas
+
+    - name: Configure (Release)
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_CXX_COMPILER=g++-13 \
+          -G Ninja
+
+    - name: Build
+      run: cmake --build build --parallel
+
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure --timeout 300
+
+    - name: Run benchmark (quick smoke test)
+      run: ./build/bench_pricing
+      continue-on-error: true
+
+    - name: Smoke test main demo (synthetic data)
+      run: ./build/heston_demo
+
+    - name: Python validation (no QuantLib)
+      run: |
+        python3 python/fetch_data.py
+        python3 python/validate_vs_quantlib.py
+      continue-on-error: true
+
+    - name: Upload calibration results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: calibration-results
+        path: results/

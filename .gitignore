@@ -1,0 +1,7 @@
+build/
+results/
+data/spx_options_sample.csv
+python/__pycache__/
+web/__pycache__/
+*.pyc
+.DS_Store
